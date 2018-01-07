@@ -122,6 +122,30 @@ fn bytes_to_base64(bytes: &[u8]) -> Vec<u8> {
     return result;
 }
 
+fn bytes_to_hex(b: &[u8]) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    for byte in b {
+        write!(&mut out, "{:x}", byte).expect("Unable to write");
+    }
+    out
+}
+
+fn fixed_xor(bytes: &[u8], mask: &[u8]) -> Vec<u8> {
+    if bytes.len() != mask.len() {
+        panic!("Input arrays must have the same length");
+    }
+
+    let mut result: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut mask_iter = mask.iter();
+
+    for b in bytes {
+        result.push(b ^ mask_iter.next().unwrap());
+    }
+
+    result
+}
+
 fn main() {
     match hex_to_bytes("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d") {
         Ok(bytes) =>  {
@@ -134,5 +158,15 @@ fn main() {
             }
         },
         Err(e) => println!("Error 1.1: {}", e),
+    }
+
+    let expected = "746865206b696420646f6e277420706c6179";
+    let bytes = hex_to_bytes("1c0111001f010100061a024b53535009181c").unwrap();
+    let mask = hex_to_bytes("686974207468652062756c6c277320657965").unwrap();
+
+    if bytes_to_hex(&fixed_xor(&bytes, &mask)) == expected {
+        println!("Task 2 from set 1: Done");
+    } else {
+        println!("Task 2 from set 1: Fail");
     }
 }
