@@ -1,5 +1,6 @@
 use std::error;
 use std::fmt;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 struct ParseHexError;
@@ -146,7 +147,21 @@ fn fixed_xor(bytes: &[u8], mask: &[u8]) -> Vec<u8> {
     result
 }
 
+fn count_symbol_freq(text: &str) -> HashMap<char, f32> {
+    let mut symbols: HashMap<char, u32> = HashMap::new();
+    let mut total: u32 = 0;
+
+    for ch in text.chars().filter(|c| c.is_alphabetic()) {
+        let counter = symbols.entry(ch).or_insert(0);
+        *counter += 1;
+        total += 1;
+    }
+
+    symbols.into_iter().map(|(ch, count)| (ch, count as f32 / total as f32)).collect()
+}
+
 fn main() {
+    // Task 1 from set 1
     match hex_to_bytes("49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d") {
         Ok(bytes) =>  {
             let expected = "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t";
@@ -160,6 +175,7 @@ fn main() {
         Err(e) => println!("Error 1.1: {}", e),
     }
 
+    // Task 2 from set 1
     let expected = "746865206b696420646f6e277420706c6179";
     let bytes = hex_to_bytes("1c0111001f010100061a024b53535009181c").unwrap();
     let mask = hex_to_bytes("686974207468652062756c6c277320657965").unwrap();
@@ -169,4 +185,47 @@ fn main() {
     } else {
         println!("Task 2 from set 1: Fail");
     }
+
+    // Task 3 from set 1
+    let source = hex_to_bytes("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736").unwrap();
+    let source_len = source.len();
+    let mut decoded: HashMap<char, Vec<u8>> = HashMap::with_capacity(26);
+
+    for key in b'A'..b'Z' {
+        let xored = decoded.entry(key as char).or_insert(Vec::with_capacity(source_len));
+
+        for b in &source {
+            xored.push(b ^ key);
+        }
+    }
+
+    let eng_freq: HashMap<char, f32> = [
+        ('t', 0.15978),('a', 0.11680),('o', 0.07631),('i', 0.07294),('s', 0.06686),
+        ('w', 0.05497),('c', 0.05238),('b', 0.04434),('p', 0.04319),('h', 0.04200),
+        ('f', 0.04027),('m', 0.03826),('d', 0.03174),('r', 0.02826),('e', 0.02799),
+        ('l', 0.02415),('n', 0.02284),('g', 0.01642),('u', 0.01183),('v', 0.00824),
+        ('y', 0.00763),('j', 0.00511),('k', 0.00456),('q', 0.00222),('x', 0.00045),
+        ('z', 0.00045),
+    ].iter().cloned().collect();
+
+    let distance = |symb_freq: &HashMap<char, f32>| -> f32 {
+        let mut result: f32 = 0.0;
+        for (ch, freq) in symb_freq {
+            result += (freq - eng_freq.get(ch).unwrap()).abs();
+        }
+        result
+    };
+
+    let mut dist = decoded.into_iter().map(|(k,v)| {
+            let text = String::from_utf8(v).expect("Not UTF-8");
+            (k, distance(&count_symbol_freq(&text.to_lowercase())), text)
+        }
+    ).collect::<Vec<(char, f32, String)>>();
+
+    use std::cmp::Ordering;
+    dist.sort_by(|a,b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
+
+    let &(key, _, ref text) = dist.last().unwrap();
+
+    println!("Task 3 from set 1: Done. Key: {}. Message: {}", key, text);
 }
